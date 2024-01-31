@@ -5,11 +5,11 @@ import (
 	"bufio"
 	"os"
 	"github.com/CRowland4/pokedexcli/internal/pokeapi"
+	"github.com/CRowland4/pokedexcli/internal/pokecache"
 )
 
 func main() {
-	fmt.Println("Welcome to the Pokedex!\n")
-	fmt.Print("Usage:\nhelp: Display all commands\nexit: Exit the Pokedex")
+	executeStartupProcesses()
 
 	locationGetter := pokeapi.LocationGetter()
 	for {
@@ -47,4 +47,11 @@ func getCommand() (command string) {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	return scanner.Text()
+}
+
+func executeStartupProcesses() {
+	pokecache.InitializePokeCache()
+	fmt.Println("Welcome to the Pokedex!\n")
+	fmt.Print("Usage:\nhelp: Display all commands\nexit: Exit the Pokedex")
+	return
 }

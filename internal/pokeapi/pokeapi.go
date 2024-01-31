@@ -6,8 +6,12 @@ import (
 	"errors"
 	"encoding/json"
 	"io/ioutil"
+	"github.com/CRowland4/pokedexcli/internal/pokecache"
 )
 
+const areaCount = 20
+
+// Struct to read in the response from the LocationAreas endpoint
 type locationArea struct {
 	ID                   int    `json:"id"`
 	Name                 string `json:"name"`
@@ -61,19 +65,23 @@ type locationArea struct {
 	} `json:"pokemon_encounters"`
 }
 
-func LocationGetter() func(string) ([20]string, error) {
+func LocationGetter() (getLocations func(string) ([areaCount]string, error)) {  // TODO make this function populate/check the cache, then another to return the values?
 	currentLocationID := 1
-	getLocations := func(command string) (locations [20]string, err error) {
+	getLocations = func(command string) (locations [areaCount]string, err error) {
 		if command == "mapb" && currentLocationID == 1 {
 			return locations, errors.New("No previous locations!")
-		} else if command == "mapb" {
+		}
+		
+		if command == "mapb" {
 			for i := range locations {
 				currentLocationID--
-				locations[i] = getCurrentLocation(currentLocationID)
+				// TODO Go routine for caching?
+				locations[i] = getCurrentLocation(currentLocationID)  
 			}
 		} else if command == "map"{
 			for i := range locations {
-				locations[i] = getCurrentLocation(currentLocationID)
+				// TODO Go routine for caching?
+				locations[i] = getCurrentLocation(currentLocationID)  
 				currentLocationID++
 			} 
 		} else {
@@ -88,6 +96,10 @@ func LocationGetter() func(string) ([20]string, error) {
 }
 
 func getCurrentLocation(id int) (location string) {
+	if location, ok := pokecache.PokeCache[id]; ok {
+		return location
+	}
+
 	address := fmt.Sprintf("https://pokeapi.co/api/v2/location-area/%d/", id)
 
 	response, errResponse := http.Get(address)
@@ -107,5 +119,6 @@ func getCurrentLocation(id int) (location string) {
 		return fmt.Sprintf("Unable to unmarshal location API response for ID %d: %w", id, errUnmarshal)
 	}
 
-	return locationResponse.Name
+	pokecache.PokeCache[id] = locationResponse.Name
+	return pokecache.PokeCache[id]
 }
