@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"github.com/CRowland4/pokedexcli/internal/pokecache"
+	"sync"
 )
 
-const areaCount = 20
+const locationCount = 20
 
 // Struct to read in the response from the LocationAreas endpoint of the PokéAPI
 type locationArea struct {
@@ -65,24 +66,23 @@ type locationArea struct {
 	} `json:"pokemon_encounters"`
 }
 
-func LocationGetter() (getLocations func(string) ([areaCount]string, error)) {
+func LocationGetter() (getLocations func(string) ([locationCount]string, error)) {
 	currentLocationID := 1
 
-	getLocations = func(command string) (locations [areaCount]string, err error) {
+	getLocations = func(command string) (locations [locationCount]string, err error) {
 		if command == "mapb" && currentLocationID == 1 {
 			return locations, errors.New("No previous locations!")
 		}
+		cacheAllLocationsIfNotCached(currentLocationID, command)
 
 		switch command {
 		case "mapb":
 			for i := range locations {
 				currentLocationID--
-				go cacheLocationIfNotCached(i)
 				locations[i], _ = pokecache.Get(currentLocationID)
 			}
 		case "map":
 			for i := range locations {
-				go cacheLocationIfNotCached(i)
 				locations[i], _ = pokecache.Get(currentLocationID)
 				currentLocationID++
 			}
@@ -96,7 +96,32 @@ func LocationGetter() (getLocations func(string) ([areaCount]string, error)) {
 	return getLocations
 }
 
-func cacheLocationIfNotCached(id int) {
+func cacheAllLocationsIfNotCached(currentLocation int, command string) {
+	var wg sync.WaitGroup
+
+	switch command {
+	case "mapb":
+		for i := 0; i < locationCount; i++ {
+			currentLocation--
+			go cacheLocationIfNotCached(currentLocation, &wg)
+		}
+	case "map":
+		for i := 0; i < locationCount; i++ {
+			go cacheLocationIfNotCached(currentLocation, &wg)
+			currentLocation++
+		}
+	default:
+		fmt.Println("Command not recognized for caching map locations:", command)
+	}
+
+	wg.Wait()
+	return
+}
+
+func cacheLocationIfNotCached(id int, wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
+
 	if pokecache.IsCached(id) {
 		return
 	}

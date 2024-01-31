@@ -13,7 +13,9 @@ const (
 )
 
 func main() {
-	executeStartupProcesses()
+	stopCh := make(chan bool)
+	defer close(stopCh)
+	executeStartupProcesses(stopCh)
 
 	locationGetter := pokeapi.LocationGetter()
 	for {
@@ -30,6 +32,9 @@ func main() {
 			fmt.Print("Command not recognized")
 		}
 	}
+
+	stopCh <- true
+	return
 }
 
 func printLocations(locations [20]string, err error) {
@@ -53,8 +58,8 @@ func getCommand() (command string) {
 	return scanner.Text()
 }
 
-func executeStartupProcesses() {
-	pokecache.InitializePokeCache()
+func executeStartupProcesses(stopCh chan bool) {
+	pokecache.InitializePokeCache(stopCh)
 	fmt.Println("Welcome to the Pokedex!\n")
 	fmt.Print("Usage:\nhelp: Display all commands\nexit: Exit the Pokedex")
 	return

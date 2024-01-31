@@ -16,9 +16,9 @@ type cacheEntry struct{
 	areaName string  // TODO should this be []byte?
 }
 
-func InitializePokeCache() {
+func InitializePokeCache(stopCh chan bool) {
 	pokeCache = make(map[int]cacheEntry)
-	go periodicallyRemoveOldPokeCacheEntries()
+	go periodicallyRemoveOldPokeCacheEntries(stopCh)
 	return
 }
 
@@ -47,15 +47,20 @@ func Get(id int) (locationName string, isFound bool) {
 
 /*=========================================================================================================================*/
 
-func periodicallyRemoveOldPokeCacheEntries() {
+func periodicallyRemoveOldPokeCacheEntries(stopCh chan bool) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
-	for {
-		currentTime := <- ticker.C
-		clearOldPokeCacheEntries(currentTime)
-	}
 
-	return  // How does this function actually finish running at the end of the program?
+	for {
+		select {
+		case currentTime := <- ticker.C:
+			clearOldPokeCacheEntries(currentTime)
+		case <- stopCh:
+			return
+		default:
+			continue
+		}
+	}
 }
 
 func clearOldPokeCacheEntries(timeValue time.Time) {
