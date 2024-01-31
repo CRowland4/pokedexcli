@@ -6,19 +6,19 @@ import (
 )
 
 var (
-	pokeCache map[int]cacheEntry  // Maps location IDs to location names
+	pokeCache map[int]cacheEntry
 	mu sync.Mutex
 )
 const cacheEntryLifeSpan = time.Duration(1 * time.Minute)
 
 type cacheEntry struct{
 	createdAt time.Time
-	areaName string  // TODO should this be []byte?
+	areaName string  // TODO have the cache entry be the full JSON response, not just the name
 }
 
-func InitializePokeCache(stopCh chan bool) {
+func InitializePokeCache() {
 	pokeCache = make(map[int]cacheEntry)
-	go periodicallyRemoveOldPokeCacheEntries(stopCh)
+	go periodicallyRemoveOldPokeCacheEntries()
 	return
 }
 
@@ -47,19 +47,12 @@ func Get(id int) (locationName string, isFound bool) {
 
 /*=========================================================================================================================*/
 
-func periodicallyRemoveOldPokeCacheEntries(stopCh chan bool) {
+func periodicallyRemoveOldPokeCacheEntries() {
 	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
 
 	for {
-		select {
-		case currentTime := <- ticker.C:
-			clearOldPokeCacheEntries(currentTime)
-		case <- stopCh:
-			return
-		default:
-			continue
-		}
+		currentTime := <- ticker.C
+		clearOldPokeCacheEntries(currentTime)
 	}
 }
 
