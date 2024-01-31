@@ -11,7 +11,7 @@ import (
 
 const areaCount = 20
 
-// Struct to read in the response from the LocationAreas endpoint
+// Struct to read in the response from the LocationAreas endpoint of the PokéAPI
 type locationArea struct {
 	ID                   int    `json:"id"`
 	Name                 string `json:"name"`
@@ -65,28 +65,29 @@ type locationArea struct {
 	} `json:"pokemon_encounters"`
 }
 
-func LocationGetter() (getLocations func(string) ([areaCount]string, error)) {  // TODO make this function populate/check the cache, then another to return the values?
+func LocationGetter() (getLocations func(string) ([areaCount]string, error)) {
 	currentLocationID := 1
+
 	getLocations = func(command string) (locations [areaCount]string, err error) {
 		if command == "mapb" && currentLocationID == 1 {
 			return locations, errors.New("No previous locations!")
 		}
-		
-		if command == "mapb" {
+
+		switch command {
+		case "mapb":
 			for i := range locations {
 				currentLocationID--
-				// TODO Go routine for caching?
-				locations[i] = getCurrentLocation(currentLocationID)  
+				go cacheLocationIfNotCached(i)
+				locations[i], _ = pokecache.Get(currentLocationID)
 			}
-		} else if command == "map"{
+		case "map":
 			for i := range locations {
-				// TODO Go routine for caching?
-				locations[i] = getCurrentLocation(currentLocationID)  
+				go cacheLocationIfNotCached(i)
+				locations[i], _ = pokecache.Get(currentLocationID)
 				currentLocationID++
-			} 
-		} else {
-			errorMessage := fmt.Sprintf("Location getter command not recognized: %s", command)
-			return locations, errors.New(errorMessage)
+			}
+		default:
+			return locations, errors.New(fmt.Sprintf("Location getter command not recognized: %s", command))
 		}
 
 		return locations, nil
@@ -95,13 +96,18 @@ func LocationGetter() (getLocations func(string) ([areaCount]string, error)) {  
 	return getLocations
 }
 
-func getCurrentLocation(id int) (location string) {
-	if location, ok := pokecache.PokeCache[id]; ok {
-		return location
+func cacheLocationIfNotCached(id int) {
+	if pokecache.IsCached(id) {
+		return
 	}
 
-	address := fmt.Sprintf("https://pokeapi.co/api/v2/location-area/%d/", id)
+	apiResponse := getPokeAPILocation(id)
+	pokecache.Add(id, apiResponse)
+	return
+}
 
+func getPokeAPILocation(id int) (locationName string) {
+	address := fmt.Sprintf("https://pokeapi.co/api/v2/location-area/%d/", id)
 	response, errResponse := http.Get(address)
 	if errResponse != nil {
 		return fmt.Sprintf("Error retrieving location id %d: %w", id, errResponse)
@@ -119,6 +125,5 @@ func getCurrentLocation(id int) (location string) {
 		return fmt.Sprintf("Unable to unmarshal location API response for ID %d: %w", id, errUnmarshal)
 	}
 
-	pokecache.PokeCache[id] = locationResponse.Name
-	return pokecache.PokeCache[id]
+	return locationResponse.Name
 }

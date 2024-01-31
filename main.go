@@ -7,18 +7,22 @@ import (
 	"github.com/CRowland4/pokedexcli/internal/pokeapi"
 	"github.com/CRowland4/pokedexcli/internal/pokecache"
 )
+const (
+	lineSeparator = "\n\n+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+\n\n"
+	helpMessage = "Usage:\nhelp: Display all commands\nmap: Display next 20 locations\nmapb: Display previous 20 locations\nexit: Exit the Pokedex"
+)
 
 func main() {
 	executeStartupProcesses()
 
 	locationGetter := pokeapi.LocationGetter()
 	for {
-		fmt.Print("\n\n+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+\n\n")
+		fmt.Print(lineSeparator)
 		switch command := getCommand(); command {
 		case "exit":
 			return
 		case "help":
-			fmt.Print("Usage:\nhelp: Display all commands\nmap: Display next 20 locations\nmapb: Display previous 20 locations\nexit: Exit the Pokedex")  // TODO consolodate into variable
+			fmt.Print(helpMessage)
 		case "map", "mapb":
 			locations, err := locationGetter(command)
 			printLocations(locations, err)
