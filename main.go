@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"bufio"
 	"os"
+	"time"
 	"github.com/CRowland4/pokedexcli/internal/pokeapi"
 	"github.com/CRowland4/pokedexcli/internal/pokecache"
 )
@@ -13,9 +14,10 @@ const (
 )
 
 func main() {
-	executeStartupProcesses()
+	fmt.Print("Welcome to the Pokedex!\n\nUsage:\nhelp: Display all commands\nexit: Exit the Pokedex")
+	cache := pokecache.NewCache(5 * time.Minute)
 
-	locationGetter := pokeapi.LocationGetter()
+	locationCacher := pokeapi.LocationCacher()
 	for {
 		fmt.Print(lineSeparator)
 		switch command := getCommand(); command {
@@ -24,7 +26,7 @@ func main() {
 		case "help":
 			fmt.Print(helpMessage)
 		case "map", "mapb":
-			locations, err := locationGetter(command)
+			locations, err := locationCacher(&cache, command)
 			printLocations(locations, err)
 		default:
 			fmt.Print("Command not recognized")
@@ -53,11 +55,4 @@ func getCommand() (command string) {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	return scanner.Text()
-}
-
-func executeStartupProcesses() {
-	pokecache.InitializePokeCache()
-	fmt.Println("Welcome to the Pokedex!\n")
-	fmt.Print("Usage:\nhelp: Display all commands\nexit: Exit the Pokedex")
-	return
 }

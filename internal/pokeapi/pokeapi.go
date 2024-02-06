@@ -66,48 +66,56 @@ type locationArea struct {
 	} `json:"pokemon_encounters"`
 }
 
-func LocationGetter() (getLocations func(string) ([locationCount]string, error)) {
+func LocationCacher() (cacheLocations func(*pokecache.Cache, string) ([locationCount]string, error)) {
 	currentLocationID := 1
 
-	getLocations = func(command string) (locations [locationCount]string, err error) {
+	cacheLocations = func(cache *pokecache.Cache, command string) (locations [locationCount]string, err error) {
 		if command == "mapb" && currentLocationID == 1 {
 			return locations, errors.New("No previous locations!")
 		}
-		cacheAllLocationsIfNotCached(currentLocationID, command)
-
-		switch command {
-		case "mapb":
-			for i := range locations {
-				currentLocationID--
-				locations[i], _ = pokecache.Get(currentLocationID)
-			}
-		case "map":
-			for i := range locations {
-				locations[i], _ = pokecache.Get(currentLocationID)
-				currentLocationID++
-			}
-		default:
-			return locations, errors.New(fmt.Sprintf("Location getter command not recognized: %s", command))
-		}
+		cacheAllLocationsIfNotCached(cache, currentLocationID, command)
+		locations, newLocationID := getCachedLocations(*cache, currentLocationID, command)
+		currentLocationID = newLocationID
 
 		return locations, nil
 	}
 
-	return getLocations
+	return cacheLocations
 }
 
-func cacheAllLocationsIfNotCached(currentLocation int, command string) {
+func getCachedLocations(cache pokecache.Cache, locationID int, command string) (locations [locationCount]string, updatedLocationID int) {
+	switch command {
+	case "mapb":
+		for i := 0; i < locationCount; i++ {
+			locationID--
+			locations[i], _ = cache.Get(locationID)
+		}
+	case "map":
+		for i := range locations {
+			locations[i], _ = cache.Get(locationID)
+			locationID++
+		}
+	default:
+		fmt.Sprintf("Location getter command not recognized: %s", command)
+	}
+
+	return locations, locationID
+}
+
+func cacheAllLocationsIfNotCached(cache *pokecache.Cache, currentLocation int, command string) {
 	var wg sync.WaitGroup
 
 	switch command {
 	case "mapb":
 		for i := 0; i < locationCount; i++ {
 			currentLocation--
-			go cacheLocationIfNotCached(currentLocation, &wg)
+			wg.Add(1)
+			go cacheLocationIfNotCached(cache, currentLocation, &wg)
 		}
 	case "map":
 		for i := 0; i < locationCount; i++ {
-			go cacheLocationIfNotCached(currentLocation, &wg)
+			wg.Add(1)
+			go cacheLocationIfNotCached(cache, currentLocation, &wg)
 			currentLocation++
 		}
 	default:
@@ -118,16 +126,15 @@ func cacheAllLocationsIfNotCached(currentLocation int, command string) {
 	return
 }
 
-func cacheLocationIfNotCached(id int, wg *sync.WaitGroup) {
-	wg.Add(1)
+func cacheLocationIfNotCached(cache *pokecache.Cache, id int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if pokecache.IsCached(id) {
+	if _, ok := cache.Get(id); ok {
 		return
 	}
 
 	apiResponse := getPokeAPILocation(id)
-	pokecache.Add(id, apiResponse)
+	cache.Add(id, apiResponse)
 	return
 }
 
@@ -147,7 +154,7 @@ func getPokeAPILocation(id int) (locationName string) {
 	var locationResponse locationArea
 	errUnmarshal := json.Unmarshal(body, &locationResponse)
 	if errUnmarshal != nil {
-		return fmt.Sprintf("Unable to unmarshal location API response for ID %d: %w", id, errUnmarshal)
+		return "Location not available"
 	}
 
 	return locationResponse.Name

@@ -4,65 +4,73 @@ import (
 	"time"
 	"sync"
 )
+/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
-var (
-	pokeCache map[int]cacheEntry
-	mu sync.Mutex
-)
 const cacheEntryLifeSpan = time.Duration(1 * time.Minute)
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+type Cache struct{
+	info map[int]cacheEntry
+	mu *sync.Mutex
+}
 
 type cacheEntry struct{
 	createdAt time.Time
-	areaName string  // TODO have the cache entry be the full JSON response, not just the name
+	val []byte
 }
 
-func InitializePokeCache() {
-	pokeCache = make(map[int]cacheEntry)
-	go periodicallyRemoveOldPokeCacheEntries()
-	return
+/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+type Cacher interface{
+	Add(key int, areaName string)
+	Get(key int) (areaName string, isFound bool)
+	reapLoop(interval time.Duration)
 }
 
-func IsCached(id int) bool {
-	_, ok := Get(id)
-	return ok
-}
-
-func Add(id int, areaName string) {
-	mu.Lock()
-	defer mu.Unlock()
+func (c *Cache) Add(id int, areaName string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	
-	newAreaEntry := cacheEntry{createdAt: time.Now(), areaName: areaName}
-	pokeCache[id] = newAreaEntry
+	newAreaEntry := cacheEntry{
+		createdAt: time.Now(),
+		val: []byte(areaName),
+	}
+
+	c.info[id] = newAreaEntry
 	return
 }
 
-func Get(id int) (locationName string, isFound bool) {
-	entry, isFound := pokeCache[id]
+func (c *Cache) Get(id int) (locationName string, isFound bool) {
+	entry, isFound := c.info[id]
 	if isFound {
-		return entry.areaName, true
+		return string(entry.val), true
 	}
 
 	return "", false
 }
 
-/*=========================================================================================================================*/
-
-func periodicallyRemoveOldPokeCacheEntries() {
-	ticker := time.NewTicker(1 * time.Minute)
-
+func (c *Cache) reapLoop(interval time.Duration) {
+	ticker := time.NewTicker(interval)
 	for {
 		currentTime := <- ticker.C
-		clearOldPokeCacheEntries(currentTime)
+		for id, entry := range (*c).info {
+			entryAge := currentTime.Sub(entry.createdAt)
+			if entryAge > cacheEntryLifeSpan {
+				delete((*c).info, id)
+			}
+		}
 	}
 }
 
-func clearOldPokeCacheEntries(timeValue time.Time) {
-	for id, entry := range pokeCache {
-		entryAge := timeValue.Sub(entry.createdAt)
-		if entryAge > cacheEntryLifeSpan {
-			delete(pokeCache, id)
-		}
-	}
+/*==================================================================================================================================*/
 
-	return
+
+func NewCache(interval time.Duration) (pokeCache Cache) {
+	pokeCache = Cache{
+		info: make(map[int]cacheEntry),
+		mu: new(sync.Mutex),
+	}
+	go pokeCache.reapLoop(interval)
+	return pokeCache
 }
