@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-const locationCount = 20
+const LocationCount = 20
 
 // Struct to read in the response from the LocationAreas endpoint of the PokéAPI
 type locationArea struct {
@@ -66,60 +66,40 @@ type locationArea struct {
 	} `json:"pokemon_encounters"`
 }
 
-func LocationCacher() (cacheLocations func(*pokecache.Cache, string) ([locationCount]string, error)) {
+func LocationCacher() (cacheLocations func(*pokecache.Cache, string) ([LocationCount]string, error)) {
 	currentLocationID := 1
-
-	cacheLocations = func(cache *pokecache.Cache, command string) (locations [locationCount]string, err error) {
-		if command == "mapb" && currentLocationID == 1 {
+	
+	cacheLocations = func(cache *pokecache.Cache, command string) (locations [LocationCount]string, err error) {
+		if command == "mapb" && currentLocationID <= LocationCount + 1 {
 			return locations, errors.New("No previous locations!")
+		} else if command == "mapb" {
+			currentLocationID -= (2 * LocationCount)
 		}
-		cacheAllLocationsIfNotCached(cache, currentLocationID, command)
-		locations, newLocationID := getCachedLocations(*cache, currentLocationID, command)
-		currentLocationID = newLocationID
 
+		cacheAllLocationsIfNotCached(cache, currentLocationID, command)
+		locations = getCachedLocations(*cache, currentLocationID, command)
+		currentLocationID += LocationCount
 		return locations, nil
 	}
 
 	return cacheLocations
 }
 
-func getCachedLocations(cache pokecache.Cache, locationID int, command string) (locations [locationCount]string, updatedLocationID int) {
-	switch command {
-	case "mapb":
-		for i := 0; i < locationCount; i++ {
-			locationID--
-			locations[i], _ = cache.Get(locationID)
-		}
-	case "map":
-		for i := range locations {
-			locations[i], _ = cache.Get(locationID)
-			locationID++
-		}
-	default:
-		fmt.Sprintf("Location getter command not recognized: %s", command)
+func getCachedLocations(cache pokecache.Cache, locationID int, command string) (locations [LocationCount]string) {
+	for i := 0; i < LocationCount; i++ {
+		entry, _ := cache.Get(locationID)
+		locations[i] = entry.LocationName
+		locationID++
 	}
-
-	return locations, locationID
+	return locations
 }
 
-func cacheAllLocationsIfNotCached(cache *pokecache.Cache, currentLocation int, command string) {
+func cacheAllLocationsIfNotCached(cache *pokecache.Cache, currentLocationID int, command string) {
 	var wg sync.WaitGroup
-
-	switch command {
-	case "mapb":
-		for i := 0; i < locationCount; i++ {
-			currentLocation--
-			wg.Add(1)
-			go cacheLocationIfNotCached(cache, currentLocation, &wg)
-		}
-	case "map":
-		for i := 0; i < locationCount; i++ {
-			wg.Add(1)
-			go cacheLocationIfNotCached(cache, currentLocation, &wg)
-			currentLocation++
-		}
-	default:
-		fmt.Println("Command not recognized for caching map locations:", command)
+	for i := 0; i < LocationCount; i++ {
+		wg.Add(1)
+		go cacheLocationIfNotCached(cache, currentLocationID, &wg)
+		currentLocationID++
 	}
 
 	wg.Wait()
@@ -133,29 +113,37 @@ func cacheLocationIfNotCached(cache *pokecache.Cache, id int, wg *sync.WaitGroup
 		return
 	}
 
-	apiResponse := getPokeAPILocation(id)
-	cache.Add(id, apiResponse)
+	location, pokemon := getPokeAPILocation(id)
+	cache.Add(id, location, pokemon)
 	return
 }
 
-func getPokeAPILocation(id int) (locationName string) {
+func getPokeAPILocation(id int) (locationName string, pokemon []string) {
 	address := fmt.Sprintf("https://pokeapi.co/api/v2/location-area/%d/", id)
 	response, errResponse := http.Get(address)
 	if errResponse != nil {
-		return fmt.Sprintf("Error retrieving location id %d: %w", id, errResponse)
+		return fmt.Sprintf("Error retrieving location id %d: %w", id, errResponse), nil
 	}
 	defer response.Body.Close()
 
 	body, errBody := ioutil.ReadAll(response.Body)
 	if errBody != nil {
-		return fmt.Sprintf("Unable to read body of location API response: %w", errBody)
+		return fmt.Sprintf("Unable to read body of location API response: %w", errBody),  nil
 	}
 
 	var locationResponse locationArea
 	errUnmarshal := json.Unmarshal(body, &locationResponse)
 	if errUnmarshal != nil {
-		return "Location not available"
+		return "Location not available", nil  // TODO have some better output message here
 	}
 
-	return locationResponse.Name
+	return locationResponse.Name, getPokemonInLocation(locationResponse)
+}
+
+func getPokemonInLocation(location locationArea) (pokemonNames []string) {
+	for _, encounter := range location.PokemonEncounters {
+		pokemonNames = append(pokemonNames, encounter.Pokemon.Name)
+	}
+
+	return pokemonNames
 }

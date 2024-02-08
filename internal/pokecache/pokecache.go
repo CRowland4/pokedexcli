@@ -11,13 +11,14 @@ const cacheEntryLifeSpan = time.Duration(1 * time.Minute)
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 type Cache struct{
-	info map[int]cacheEntry
+	Info map[int]cacheEntry
 	mu *sync.Mutex
 }
 
 type cacheEntry struct{
 	createdAt time.Time
-	val []byte
+	LocationName string
+	Pokemon []string
 }
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -28,36 +29,37 @@ type Cacher interface{
 	reapLoop(interval time.Duration)
 }
 
-func (c *Cache) Add(id int, areaName string) {
+func (c *Cache) Add(id int, areaName string, pokemon []string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	
 	newAreaEntry := cacheEntry{
 		createdAt: time.Now(),
-		val: []byte(areaName),
+		LocationName: areaName,
+		Pokemon: pokemon,
 	}
 
-	c.info[id] = newAreaEntry
+	c.Info[id] = newAreaEntry
 	return
 }
 
-func (c *Cache) Get(id int) (locationName string, isFound bool) {
-	entry, isFound := c.info[id]
+func (c *Cache) Get(id int) (entry cacheEntry, isFound bool) {
+	entry, isFound = c.Info[id]
 	if isFound {
-		return string(entry.val), true
+		return entry, true
 	}
 
-	return "", false
+	return entry, false
 }
 
 func (c *Cache) reapLoop(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	for {
 		currentTime := <- ticker.C
-		for id, entry := range (*c).info {
+		for id, entry := range (*c).Info {
 			entryAge := currentTime.Sub(entry.createdAt)
 			if entryAge > cacheEntryLifeSpan {
-				delete((*c).info, id)
+				delete((*c).Info, id)
 			}
 		}
 	}
@@ -68,7 +70,7 @@ func (c *Cache) reapLoop(interval time.Duration) {
 
 func NewCache(interval time.Duration) (pokeCache Cache) {
 	pokeCache = Cache{
-		info: make(map[int]cacheEntry),
+		Info: make(map[int]cacheEntry),
 		mu: new(sync.Mutex),
 	}
 	go pokeCache.reapLoop(interval)
