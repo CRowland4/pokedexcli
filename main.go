@@ -21,7 +21,10 @@ func main() {
 
 	cache := pokecache.NewCache(5 * time.Minute)
 	locationCacher := pokeapi.LocationCacher()
+
 	var currentLocations [pokeapi.LocationCount]string
+	var currentPokemon []string
+
 	for {
 		fmt.Print(lineSeparator)
 		command := getCommand()
@@ -30,10 +33,13 @@ func main() {
 		} else if command == "help" {
 			fmt.Print(helpMessage)
 		} else if command == "map" || command == "mapb" {
-			currentLocations, err := locationCacher(&cache, command)
-			printLocations(currentLocations, err)
+			currentLocations = locationCacher(&cache, command)
+			printLocations(currentLocations)
 		} else if strings.Contains(command, "explore") {
-			exploreArea(cache, command, currentLocations)
+			currentPokemon = cacheAreaPokemon(cache, command, currentLocations)
+			printPokemon(currentPokemon)
+		} else if strings.Contains(command, "catch") {
+			catchPokemon(cache, command, currentPokemon)  // TODO create this function
 		} else {
 			fmt.Print("Command not recognized")
 		}
@@ -42,7 +48,24 @@ func main() {
 	return
 }
 
-func exploreArea(cache pokecache.Cache, command string, currentLocations [pokeapi.LocationCount]string) {
+func catchPokemon(cache pokecache.Cache, command string, currentPokemon []string) bool {
+	return true  // TODO complete this function
+}
+
+func printPokemon(pokemon []string) {
+	if len(pokemon) == 0 {
+		return
+	}
+
+	fmt.Println("Found Pokemon:")
+	for i := range pokemon {
+		fmt.Println("	-", pokemon[i])
+	}
+
+	return
+}
+
+func cacheAreaPokemon(cache pokecache.Cache, command string, currentLocations [pokeapi.LocationCount]string) (pokemon []string) {
 	commandPieces := strings.Split(command, " ")
 	if len(commandPieces) != 2 {
 		fmt.Print("Usage: explore <area-name>")
@@ -54,13 +77,10 @@ func exploreArea(cache pokecache.Cache, command string, currentLocations [pokeap
 		return
 	}
 
-	fmt.Printf("Exploring %s...\n", commandPieces[1])
-	fmt.Printf("Found Pokemon:")
-	for _, pokemon := range getLocationPokemon(commandPieces[1], cache) {
-		fmt.Printf("\n%s", pokemon)
-	}
-
-	return
+	fmt.Printf("\nExploring %s...\n", commandPieces[1])
+	pokemon = getLocationPokemon(commandPieces[1], cache)
+	// TODO cache pokemon
+	return pokemon
 }
 
 func getLocationPokemon(location string, cache pokecache.Cache) (pokemon []string) {
@@ -73,14 +93,9 @@ func getLocationPokemon(location string, cache pokecache.Cache) (pokemon []strin
 	return nil
 }
 
-func printLocations(locations [20]string, err error) {
-	if err != nil {
-		fmt.Printf("Error retrieving locations: %w\n\n", err)  // TODO print just message of error
-		return
-	}
-
+func printLocations(locations [20]string) {
 	for i := range locations {
-		fmt.Println(locations[i])
+		if locations[i] != "" { fmt.Println(locations[i]) }
 	}
 
 	return
