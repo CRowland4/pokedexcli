@@ -13,33 +13,46 @@ const cacheEntryLifeSpan = time.Duration(1 * time.Minute)
 type Cache struct{
 	Info map[int]cacheEntry
 	mu *sync.Mutex
+	PokemonBaseExperience map[string]float64
 }
 
 type cacheEntry struct{
 	createdAt time.Time
 	LocationName string
-	Pokemon []string
+	LocationPokemon []string
 }
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
-type Cacher interface{
-	Add(key int, areaName string)
-	Get(key int) (areaName string, isFound bool)
-	reapLoop(interval time.Duration)
-}
-
-func (c *Cache) Add(id int, areaName string, pokemon []string) {
+func (c *Cache) AddLocation(id int, areaName string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	
 	newAreaEntry := cacheEntry{
 		createdAt: time.Now(),
 		LocationName: areaName,
-		Pokemon: pokemon,
+		LocationPokemon: []string{},
 	}
 
 	c.Info[id] = newAreaEntry
+	return
+}
+
+func (c *Cache) AddPokemonToLocation(locationID int, pokemonName string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	location := c.Info[locationID]
+	location.LocationPokemon = append(location.LocationPokemon, pokemonName)
+	c.Info[locationID] = location
+	return
+}
+
+func (c *Cache) AddPokemon(name string, base_experience float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.PokemonBaseExperience[name] = base_experience
 	return
 }
 
@@ -72,6 +85,7 @@ func NewCache(interval time.Duration) (pokeCache Cache) {
 	pokeCache = Cache{
 		Info: make(map[int]cacheEntry),
 		mu: new(sync.Mutex),
+		PokemonBaseExperience: make(map[string]float64),
 	}
 	go pokeCache.reapLoop(interval)
 	return pokeCache

@@ -7,9 +7,10 @@ import (
 	"io/ioutil"
 	"github.com/CRowland4/pokedexcli/internal/pokecache"
 	"sync"
+	"slices"
 )
 
-const LocationCount = 20
+const LocationCount = 10
 
 // Struct to read in the response from the LocationAreas endpoint of the PokéAPI
 type locationArea struct {
@@ -375,38 +376,66 @@ func cacheAllLocationsIfNotCached(cache *pokecache.Cache, currentLocationID int,
 	return
 }
 
-func cacheLocationIfNotCached(cache *pokecache.Cache, id int, wg *sync.WaitGroup) {
+func cacheLocationIfNotCached(cache *pokecache.Cache, locationID int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if _, ok := cache.Get(id); ok {
+	if _, ok := cache.Get(locationID); ok {
 		return
 	}
 
-	location, pokemon := getPokeAPILocation(id)
-	cache.Add(id, location, pokemon)
+	locationResponse := getPokeAPILocation(locationID)
+	cache.AddLocation(locationID, locationResponse.Name)
+
+	for _, pokemonName := range getPokemonInLocation(locationResponse) {
+		go cachePokemonIfNotCached(cache, locationID, pokemonName)
+		if !slices.Contains(cache.Info[locationID].LocationPokemon, pokemonName) {
+			cache.AddPokemonToLocation(locationID, pokemonName)
+		}
+	}
+
 	return
 }
 
-func getPokeAPILocation(id int) (locationName string, pokemon []string) {
+func cachePokemonIfNotCached(cache *pokecache.Cache, locationID int, pokemonName string) {
+	if _, ok := cache.PokemonBaseExperience[pokemonName]; ok {
+		return
+	}
+
+	pokemonResponse := getPokeAPIPokemon(pokemonName)
+	cache.AddPokemon(pokemonName, float64(pokemonResponse.BaseExperience))
+	return
+}
+
+func getPokeAPIPokemon(pokemonName string) (pokemonResponse pokemonData) {
+	address := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s/", pokemonName)
+	response, _ := http.Get(address)
+	defer response.Body.Close()
+
+	body, _ := ioutil.ReadAll(response.Body)
+	json.Unmarshal(body, &pokemonResponse)
+
+	return pokemonResponse
+}
+
+func getPokeAPILocation(id int) (locationResponse locationArea) {
 	address := fmt.Sprintf("https://pokeapi.co/api/v2/location-area/%d/", id)
 	response, errResponse := http.Get(address)
 	if errResponse != nil {
-		return fmt.Sprintf("Error retrieving location id %d: %w", id, errResponse), nil
+		return
 	}
 	defer response.Body.Close()
 
 	body, errBody := ioutil.ReadAll(response.Body)
 	if errBody != nil {
-		return fmt.Sprintf("Unable to read body of location API response: %w", errBody),  nil
+		return
 	}
 
-	var locationResponse locationArea
 	errUnmarshal := json.Unmarshal(body, &locationResponse)
 	if errUnmarshal != nil {
-		return "Location not available", nil  // TODO have some better output message here
+		return
 	}
 
-	return locationResponse.Name, getPokemonInLocation(locationResponse)
+	return locationResponse
 }
 
 func getPokemonInLocation(location locationArea) (pokemonNames []string) {
