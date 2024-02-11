@@ -56,13 +56,23 @@ func (c *Cache) AddPokemon(name string, base_experience float64) {
 	return
 }
 
-func (c *Cache) Get(id int) (entry cacheEntry, isFound bool) {
+func (c *Cache) GetLocation(id int) (entry cacheEntry, isFound bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	entry, isFound = c.Info[id]
 	if isFound {
 		return entry, true
 	}
 
 	return entry, false
+}
+
+func (c *Cache) GetPokemonBaseExperience(name string) (experience float64, isFound bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	
+	experience, isFound = c.PokemonBaseExperience[name]
+	return experience, isFound
 }
 
 func (c *Cache) reapLoop(interval time.Duration) {

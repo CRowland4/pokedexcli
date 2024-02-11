@@ -9,7 +9,7 @@ import (
 	"sync"
 	"slices"
 )
-
+// TODO something is causing panics, but seemingly randomly, when calling the map function
 const LocationCount = 10
 
 // Struct to read in the response from the LocationAreas endpoint of the PokéAPI
@@ -357,7 +357,7 @@ func LocationCacher() (cacheLocations func(*pokecache.Cache, string) ([LocationC
 
 func getCachedLocations(cache pokecache.Cache, locationID int, command string) (locations [LocationCount]string) {
 	for i := 0; i < LocationCount; i++ {
-		entry, _ := cache.Get(locationID)
+		entry, _ := cache.GetLocation(locationID)
 		locations[i] = entry.LocationName
 		locationID++
 	}
@@ -379,7 +379,7 @@ func cacheAllLocationsIfNotCached(cache *pokecache.Cache, currentLocationID int,
 func cacheLocationIfNotCached(cache *pokecache.Cache, locationID int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if _, ok := cache.Get(locationID); ok {
+	if _, ok := cache.GetLocation(locationID); ok {
 		return
 	}
 
@@ -397,7 +397,7 @@ func cacheLocationIfNotCached(cache *pokecache.Cache, locationID int, wg *sync.W
 }
 
 func cachePokemonIfNotCached(cache *pokecache.Cache, locationID int, pokemonName string) {
-	if _, ok := cache.PokemonBaseExperience[pokemonName]; ok {
+	if _, ok := cache.GetPokemonBaseExperience(pokemonName); ok {
 		return
 	}
 

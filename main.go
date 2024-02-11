@@ -37,7 +37,8 @@ func main() {
 			currentPokemon = []string{}
 			printLocations(currentLocations)
 		} else if strings.Contains(command, "explore") {
-			printAreaPokemon(command, currentLocations, cache)
+			currentPokemon = getAreaPokemon(command, currentLocations, cache)
+			printAreaPokemon(currentPokemon)
 		} else if strings.Contains(command, "catch") {
 			catchPokemon(cache, command, currentPokemon)
 		} else {
@@ -70,7 +71,7 @@ func printLocations(locations [pokeapi.LocationCount]string) {
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 // explore command
 
-func printAreaPokemon(command string, currentLocations [pokeapi.LocationCount]string, cache pokecache.Cache) {
+func getAreaPokemon(command string, currentLocations [pokeapi.LocationCount]string, cache pokecache.Cache) (names []string) {
 	commandPieces := strings.Split(command, " ")
 	if len(commandPieces) != 2 {
 		fmt.Print("Usage: explore <area-name>")
@@ -83,10 +84,7 @@ func printAreaPokemon(command string, currentLocations [pokeapi.LocationCount]st
 		return
 	}
 
-	for _, name := range getLocationPokemon(location, cache) {
-		fmt.Println("  -", name)
-	}
-	return
+	return getLocationPokemon(location, cache)
 }
 
 func getLocationPokemon(location string, cache pokecache.Cache) (pokemon []string) {
@@ -97,6 +95,14 @@ func getLocationPokemon(location string, cache pokecache.Cache) (pokemon []strin
 	}
 
 	return nil
+}
+
+func printAreaPokemon(pokemon []string) {
+	for _, name := range pokemon {
+		fmt.Println("  -", name)
+	}
+
+	return
 }
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -116,8 +122,9 @@ func catchPokemon(cache pokecache.Cache, command string, currentPokemon []string
 	}
 
 	fmt.Printf("Throwing a Pokeball at %s...\n", pokemonToCatch)
-	num := float64(rand.Intn(100000))
-	if num > cache.PokemonBaseExperience[pokemonToCatch] {  // TODO 100,000 is arbitrary and should be replaced
+	baseExperience, _ := cache.GetPokemonBaseExperience(pokemonToCatch)
+
+	if float64(rand.Intn(100000)) > baseExperience {  // TODO 100,000 is arbitrary and should be replaced
 		fmt.Println(pokemonToCatch, "was caught!")
 	} else {
 		fmt.Println(pokemonToCatch, "escaped!")
