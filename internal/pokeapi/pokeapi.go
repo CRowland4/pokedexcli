@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 // TODO something is causing panics, but seemingly randomly, when calling the map function
-const LocationCount = 10
+const LocationCount = 20
 
 // Struct to read in the response from the LocationAreas endpoint of the PokéAPI
 type locationAreaJSON struct {
