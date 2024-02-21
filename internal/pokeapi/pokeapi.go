@@ -8,7 +8,7 @@ import (
 	"github.com/CRowland4/pokedexcli/internal/pokecache"
 	"sync"
 )
-// TODO something is causing panics, but seemingly randomly, when calling the map function
+
 const LocationCount = 20
 
 // Struct to read in the response from the LocationAreas endpoint of the PokéAPI

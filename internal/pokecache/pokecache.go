@@ -56,7 +56,7 @@ func (c *Cache) AddLocation(id int, areaName string) {
 func (c *Cache) AddPokemonToLocation(locationID int, pokemonName string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if !slices.Contains(c.Info[locationID].LocationPokemon, pokemonName) {  // TODO add cache method for this
+	if !slices.Contains(c.Info[locationID].LocationPokemon, pokemonName) {
 		location := c.Info[locationID]
 		location.LocationPokemon = append(location.LocationPokemon, pokemonName)
 		c.Info[locationID] = location
