@@ -3,6 +3,7 @@ package pokecache
 import (
 	"time"
 	"sync"
+	"slices"
 )
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -55,10 +56,11 @@ func (c *Cache) AddLocation(id int, areaName string) {
 func (c *Cache) AddPokemonToLocation(locationID int, pokemonName string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	location := c.Info[locationID]
-	location.LocationPokemon = append(location.LocationPokemon, pokemonName)
-	c.Info[locationID] = location
+	if !slices.Contains(c.Info[locationID].LocationPokemon, pokemonName) {  // TODO add cache method for this
+		location := c.Info[locationID]
+		location.LocationPokemon = append(location.LocationPokemon, pokemonName)
+		c.Info[locationID] = location
+	}
 	return
 }
 
@@ -80,6 +82,17 @@ func (c *Cache) GetLocation(id int) (entry locationEntry, isFound bool) {
 
 	return entry, false
 }
+
+func (c *Cache) GetCaughtPokemon() (caughtPokemon []string) {
+	for name, data := range c.Pokemon {
+		if data.IsCaught {
+			caughtPokemon = append(caughtPokemon, name)
+		}
+	}
+
+	return caughtPokemon
+}
+
 
 func (c *Cache) reapLoop(interval time.Duration) {
 	ticker := time.NewTicker(interval)

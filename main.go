@@ -13,9 +13,17 @@ import (
 )
 const (
 	lineSeparator = "\n\n+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+\n\n"
-	helpMessage = "Usage:\nhelp: Display all commands\nmap: Display next 20 locations\nmapb: Display previous 20 locations\nexit: Exit the Pokedex"
+	helpMessage = `Usage:
+	help: Display all commands
+	map: Display next 20 locations
+	mapb: Display previous 20 locations
+	explore <area>: Discover the pokemon located in one of your current locations
+	catch <pokemon>: Attempt to catch one of the pokemon you have discovered form exploring an area
+	inspect <pokemon>: Inspect a pokemon that you have caught
+	pokedex: View the names of all the pokemon that you have caught
+	exit: Exit the Pokedex`
 	welcomMessage = "Welcome to the Pokedex!\n\nUsage:\nhelp: Display all commands\nexit: Exit the Pokedex"
-)  // TODO add explore + catch to helpMessage
+)
 
 func main() {
 	fmt.Print(welcomMessage)
@@ -43,6 +51,8 @@ func main() {
 			catchPokemon(cache, command, currentPokemon)
 		} else if strings.Contains(command, "inspect") {
 			inspectPokemon(cache, command)
+		} else if command == "pokedex" {
+			printCaughtPokemon(cache)
 		} else {
 			fmt.Print("Command not recognized")
 		}
@@ -63,8 +73,18 @@ func getCommand() (command string) {
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 // map & mapb commands
 func printLocations(locations [pokeapi.LocationCount]string) {
-	for i := range locations {
-		if locations[i] != "" { fmt.Println(locations[i]) }
+	count := 0
+	for _, name := range locations {
+		if name != "" { count++ }
+	}
+
+	if count == 0 {
+		fmt.Println("Nothing to explore here...")
+		return
+	}
+
+	for _, location := range locations {
+		if location != "" { fmt.Println(location) }
 	}
 
 	return
@@ -178,6 +198,25 @@ func printPokemonInformation(cache pokecache.Cache, pokemon string) {
 
 	for _, type_ := range cache.Pokemon[pokemon].Types {
 		fmt.Println("  -" + type_)
+	}
+
+	return
+}
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+// pokedex command
+
+func printCaughtPokemon(cache pokecache.Cache) {
+	caughtPokemon := cache.GetCaughtPokemon()
+
+	if len(caughtPokemon) == 0 {
+		fmt.Println("You haven't caught any pokemon yet!")
+		return
+	}
+
+	fmt.Println("Your Pokedex:")
+	for _, name := range caughtPokemon {
+		fmt.Println("  -", name)
 	}
 
 	return

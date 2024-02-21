@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"github.com/CRowland4/pokedexcli/internal/pokecache"
 	"sync"
-	"slices"
 )
 // TODO something is causing panics, but seemingly randomly, when calling the map function
 const LocationCount = 10
@@ -387,16 +386,14 @@ func cacheLocationIfNotCached(cache *pokecache.Cache, locationID int, wg *sync.W
 	cache.AddLocation(locationID, locationResponse.Name)
 
 	for _, pokemonName := range getPokemonInLocation(locationResponse) {
-		go cachePokemonIfNotCached(cache, locationID, pokemonName)
-		if !slices.Contains(cache.Info[locationID].LocationPokemon, pokemonName) {  // TODO add cache method for this
-			cache.AddPokemonToLocation(locationID, pokemonName)
-		}
+		go cachePokemonInfoIfNotCached(cache, locationID, pokemonName)
+		cache.AddPokemonToLocation(locationID, pokemonName)
 	}
 
 	return
 }
 
-func cachePokemonIfNotCached(cache *pokecache.Cache, locationID int, pokemonName string) {
+func cachePokemonInfoIfNotCached(cache *pokecache.Cache, locationID int, pokemonName string) {
 	if _, ok := cache.Pokemon[pokemonName]; ok {
 		return
 	}
