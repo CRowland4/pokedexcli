@@ -23,6 +23,7 @@ type locationEntry struct{
 }
 
 type PokemonData struct{
+	IsCaught bool
 	BaseExperience int
 	Height int
 	Weight int

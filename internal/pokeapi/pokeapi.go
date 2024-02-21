@@ -407,6 +407,7 @@ func cachePokemonIfNotCached(cache *pokecache.Cache, locationID int, pokemonName
 }
 
 func extractPokemonData(data pokemonDataJSON) (extractedData pokecache.PokemonData) {
+	extractedData.IsCaught = false
 	extractedData.BaseExperience = data.BaseExperience
 	extractedData.Height = data.Height
 	extractedData.Weight = data.Weight

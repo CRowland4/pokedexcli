@@ -41,6 +41,8 @@ func main() {
 			printAreaPokemon(currentPokemon)
 		} else if strings.Contains(command, "catch") {
 			catchPokemon(cache, command, currentPokemon)
+		} else if strings.Contains(command, "inspect") {
+			inspectPokemon(cache, command)
 		} else {
 			fmt.Print("Command not recognized")
 		}
@@ -87,7 +89,7 @@ func getAreaPokemon(command string, currentLocations [pokeapi.LocationCount]stri
 	return getLocationPokemon(location, cache)
 }
 
-func getLocationPokemon(location string, cache pokecache.Cache) (pokemon []string) {  // TODO make this a method?a re
+func getLocationPokemon(location string, cache pokecache.Cache) (pokemon []string) {  // TODO make this a method?
 	for _, entry := range cache.Info {
 		if location == entry.LocationName {
 			return entry.LocationPokemon
@@ -126,9 +128,56 @@ func catchPokemon(cache pokecache.Cache, command string, currentPokemon []string
 
 	if rand.Intn(100000) > baseExperience {  // TODO 100,000 is arbitrary, could be replaced
 		fmt.Println(pokemonToCatch, "was caught!")
-		// TODO cache the pokemon
+		cachedPokemon := cache.Pokemon[pokemonToCatch]
+		cachedPokemon.IsCaught = true
+		cache.Pokemon[pokemonToCatch] = cachedPokemon  // Make a cache method for this, since it modifies the cache?
 	} else {
 		fmt.Println(pokemonToCatch, "escaped!")
+	}
+
+	return
+}
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+// inspect command
+
+func inspectPokemon(cache pokecache.Cache, command string) {
+	commandPieces := strings.Split(command, " ")
+	if len(commandPieces) != 2 {
+		fmt.Println("Usage: inspect <name of pokemon>")
+		return
+	}
+
+	pokemonToInspect := commandPieces[1]
+	if _, ok := cache.Pokemon[pokemonToInspect]; !ok {
+		fmt.Println("You haven't discovered a pokemon named", pokemonToInspect, "yet!")
+		return
+	}
+
+	if !cache.Pokemon[pokemonToInspect].IsCaught {
+		fmt.Println("You haven't caught a", pokemonToInspect, "yet!")
+		return
+	}
+
+	printPokemonInformation(cache, pokemonToInspect)
+	return
+}
+
+func printPokemonInformation(cache pokecache.Cache, pokemon string) {
+	fmt.Println("Name:", pokemon)
+	fmt.Println("Height:", cache.Pokemon[pokemon].Height)
+	fmt.Println("Weight:", cache.Pokemon[pokemon].Weight)
+	fmt.Println("Stats:")
+	fmt.Println("  -hp:", cache.Pokemon[pokemon].HP)
+	fmt.Println("  -attack:", cache.Pokemon[pokemon].Attack)
+	fmt.Println("  -defense:", cache.Pokemon[pokemon].Defense)
+	fmt.Println("  -special-attack:", cache.Pokemon[pokemon].SpecialAttack)
+	fmt.Println("  -special-defense:", cache.Pokemon[pokemon].SpecialDefense)
+	fmt.Println("  -Speed:", cache.Pokemon[pokemon].Speed)
+	fmt.Println("Types:")
+
+	for _, type_ := range cache.Pokemon[pokemon].Types {
+		fmt.Println("  -" + type_)
 	}
 
 	return
