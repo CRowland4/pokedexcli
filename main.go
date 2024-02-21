@@ -87,7 +87,7 @@ func getAreaPokemon(command string, currentLocations [pokeapi.LocationCount]stri
 	return getLocationPokemon(location, cache)
 }
 
-func getLocationPokemon(location string, cache pokecache.Cache) (pokemon []string) {
+func getLocationPokemon(location string, cache pokecache.Cache) (pokemon []string) {  // TODO make this a method?a re
 	for _, entry := range cache.Info {
 		if location == entry.LocationName {
 			return entry.LocationPokemon
@@ -122,10 +122,11 @@ func catchPokemon(cache pokecache.Cache, command string, currentPokemon []string
 	}
 
 	fmt.Printf("Throwing a Pokeball at %s...\n", pokemonToCatch)
-	baseExperience, _ := cache.GetPokemonBaseExperience(pokemonToCatch)
+	baseExperience := cache.Pokemon[pokemonToCatch].BaseExperience
 
-	if float64(rand.Intn(100000)) > baseExperience {  // TODO 100,000 is arbitrary and should be replaced
+	if rand.Intn(100000) > baseExperience {  // TODO 100,000 is arbitrary, could be replaced
 		fmt.Println(pokemonToCatch, "was caught!")
+		// TODO cache the pokemon
 	} else {
 		fmt.Println(pokemonToCatch, "escaped!")
 	}

@@ -13,7 +13,7 @@ import (
 const LocationCount = 10
 
 // Struct to read in the response from the LocationAreas endpoint of the PokéAPI
-type locationArea struct {
+type locationAreaJSON struct {
 	ID                   int    `json:"id"`
 	Name                 string `json:"name"`
 	GameIndex            int    `json:"game_index"`
@@ -67,7 +67,7 @@ type locationArea struct {
 }
 
 // Struct to read in the response from the Pokemon endpoint of the PokéAPI
-type pokemonData struct {
+type pokemonDataJSON struct {
 	ID             int    `json:"id"`
 	Name           string `json:"name"`
 	BaseExperience int    `json:"base_experience"`
@@ -388,7 +388,7 @@ func cacheLocationIfNotCached(cache *pokecache.Cache, locationID int, wg *sync.W
 
 	for _, pokemonName := range getPokemonInLocation(locationResponse) {
 		go cachePokemonIfNotCached(cache, locationID, pokemonName)
-		if !slices.Contains(cache.Info[locationID].LocationPokemon, pokemonName) {
+		if !slices.Contains(cache.Info[locationID].LocationPokemon, pokemonName) {  // TODO add cache method for this
 			cache.AddPokemonToLocation(locationID, pokemonName)
 		}
 	}
@@ -397,16 +397,39 @@ func cacheLocationIfNotCached(cache *pokecache.Cache, locationID int, wg *sync.W
 }
 
 func cachePokemonIfNotCached(cache *pokecache.Cache, locationID int, pokemonName string) {
-	if _, ok := cache.GetPokemonBaseExperience(pokemonName); ok {
+	if _, ok := cache.Pokemon[pokemonName]; ok {
 		return
 	}
 
 	pokemonResponse := getPokeAPIPokemon(pokemonName)
-	cache.AddPokemon(pokemonName, float64(pokemonResponse.BaseExperience))
+	cache.AddPokemon(pokemonName, extractPokemonData(pokemonResponse))
 	return
 }
 
-func getPokeAPIPokemon(pokemonName string) (pokemonResponse pokemonData) {
+func extractPokemonData(data pokemonDataJSON) (extractedData pokecache.PokemonData) {
+	extractedData.BaseExperience = data.BaseExperience
+	extractedData.Height = data.Height
+	extractedData.Weight = data.Weight
+
+	for _, stat := range data.Stats {
+		switch stat.Stat.Name {
+		case "hp": extractedData.HP = stat.BaseStat
+		case "attack": extractedData.Attack = stat.BaseStat
+		case "defense": extractedData.Defense = stat.BaseStat
+		case "special-attack": extractedData.SpecialAttack = stat.BaseStat
+		case "special-defense": extractedData.SpecialDefense = stat.BaseStat
+		case "speed": extractedData.Speed = stat.BaseStat
+		}
+	}
+
+	for _, type_ := range data.Types {
+		extractedData.Types = append(extractedData.Types, type_.Type.Name)
+	}
+
+	return extractedData
+}
+
+func getPokeAPIPokemon(pokemonName string) (pokemonResponse pokemonDataJSON) {
 	address := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s/", pokemonName)
 	response, _ := http.Get(address)
 	defer response.Body.Close()
@@ -417,7 +440,7 @@ func getPokeAPIPokemon(pokemonName string) (pokemonResponse pokemonData) {
 	return pokemonResponse
 }
 
-func getPokeAPILocation(id int) (locationResponse locationArea) {
+func getPokeAPILocation(id int) (locationResponse locationAreaJSON) {
 	address := fmt.Sprintf("https://pokeapi.co/api/v2/location-area/%d/", id)
 	response, errResponse := http.Get(address)
 	if errResponse != nil {
@@ -438,7 +461,7 @@ func getPokeAPILocation(id int) (locationResponse locationArea) {
 	return locationResponse
 }
 
-func getPokemonInLocation(location locationArea) (pokemonNames []string) {
+func getPokemonInLocation(location locationAreaJSON) (pokemonNames []string) {
 	for _, encounter := range location.PokemonEncounters {
 		pokemonNames = append(pokemonNames, encounter.Pokemon.Name)
 	}

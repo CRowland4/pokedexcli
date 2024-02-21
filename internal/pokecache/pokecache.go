@@ -11,15 +11,28 @@ const cacheEntryLifeSpan = time.Duration(1 * time.Minute)
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 type Cache struct{
-	Info map[int]cacheEntry
+	Info map[int]locationEntry
 	mu *sync.Mutex
-	PokemonBaseExperience map[string]float64
+	Pokemon map[string]PokemonData
 }
 
-type cacheEntry struct{
+type locationEntry struct{
 	createdAt time.Time
 	LocationName string
 	LocationPokemon []string
+}
+
+type PokemonData struct{
+	BaseExperience int
+	Height int
+	Weight int
+	HP int
+	Attack int
+	Defense int
+	SpecialAttack int
+	SpecialDefense int
+	Speed int
+	Types []string
 }
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -28,7 +41,7 @@ func (c *Cache) AddLocation(id int, areaName string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	
-	newAreaEntry := cacheEntry{
+	newAreaEntry := locationEntry{
 		createdAt: time.Now(),
 		LocationName: areaName,
 		LocationPokemon: []string{},
@@ -48,15 +61,15 @@ func (c *Cache) AddPokemonToLocation(locationID int, pokemonName string) {
 	return
 }
 
-func (c *Cache) AddPokemon(name string, base_experience float64) {
+func (c *Cache) AddPokemon(name string, data PokemonData) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.PokemonBaseExperience[name] = base_experience
+	c.Pokemon[name] = data
 	return
 }
 
-func (c *Cache) GetLocation(id int) (entry cacheEntry, isFound bool) {
+func (c *Cache) GetLocation(id int) (entry locationEntry, isFound bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	entry, isFound = c.Info[id]
@@ -65,14 +78,6 @@ func (c *Cache) GetLocation(id int) (entry cacheEntry, isFound bool) {
 	}
 
 	return entry, false
-}
-
-func (c *Cache) GetPokemonBaseExperience(name string) (experience float64, isFound bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	
-	experience, isFound = c.PokemonBaseExperience[name]
-	return experience, isFound
 }
 
 func (c *Cache) reapLoop(interval time.Duration) {
@@ -90,12 +95,11 @@ func (c *Cache) reapLoop(interval time.Duration) {
 
 /*==================================================================================================================================*/
 
-
 func NewCache(interval time.Duration) (pokeCache Cache) {
 	pokeCache = Cache{
-		Info: make(map[int]cacheEntry),
+		Info: make(map[int]locationEntry),
 		mu: new(sync.Mutex),
-		PokemonBaseExperience: make(map[string]float64),
+		Pokemon: make(map[string]PokemonData),
 	}
 	go pokeCache.reapLoop(interval)
 	return pokeCache
